@@ -8,8 +8,15 @@ import {
   Text,
   Space,
   Divider,
+  Loader,
 } from '@mantine/core';
+import { useQuery } from '@tanstack/react-query';
+import { FunctionComponent, PropsWithChildren, ReactNode } from 'react';
 import { ColorSchemeToggle } from '../components/ColorSchemeToggle/ColorSchemeToggle';
+import client from '../database/client';
+import { getAccounts } from '../database/getAccounts';
+import { getExpenseSumByAccount } from '../database/getExpenseSumByAccount';
+import { getIncomeSumByAccount } from '../database/getIncomeSumByAccount';
 
 const accountsWithAmounts = [
   {
@@ -53,108 +60,147 @@ const notMyOwn = budgets.reduce((sum, budget) => {
   return sum;
 }, 0);
 
+const Shell = ({ children }: PropsWithChildren) => (
+  <AppShell
+    padding="md"
+    // navbar={<Navbar width={{ base: 300 }} height={500} p="xs">{/* Navbar content */}</Navbar>}
+    // header={<Header height={60} p="xs">{/* Header content */}</Header>}
+    styles={(theme) => ({
+      main: {
+        backgroundColor: theme.colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0],
+      },
+    })}
+  >
+    <Container>{children}</Container>
+  </AppShell>
+);
+
 export default function HomePage() {
+  const { data: accounts, isLoading: isLoadingAccounts } = useQuery(['accounts'], () =>
+    getAccounts()
+  );
+
+  const { data: incomeSum, isLoading: isLoadingIncomeSum } = useQuery(['incomeSum'], () =>
+    getIncomeSumByAccount()
+  );
+
+  const { data: expenseSum, isLoading: isLoadingExpenseSum } = useQuery(['expenseSum'], () =>
+    getExpenseSumByAccount()
+  );
+
+  console.log(accounts);
+
+  console.table(incomeSum);
+
+  console.table(expenseSum);
+
+  const isLoading = isLoadingAccounts || isLoadingIncomeSum || isLoadingExpenseSum;
+
+  if (isLoading) {
+    return (
+      <Shell>
+        <Loader />
+      </Shell>
+    );
+  }
+
   return (
-    <>
-      {/* <ColorSchemeToggle /> */}
-      <AppShell
-        padding="md"
-        // navbar={<Navbar width={{ base: 300 }} height={500} p="xs">{/* Navbar content */}</Navbar>}
-        // header={<Header height={60} p="xs">{/* Header content */}</Header>}
-        styles={(theme) => ({
-          main: {
-            backgroundColor:
-              theme.colorScheme === 'dark' ? theme.colors.dark[8] : theme.colors.gray[0],
-          },
+    <Shell>
+      <Stack>
+        {accounts?.map((account) => {
+          const accountIncomeSum = incomeSum?.find((i) => i.Target === account.name);
+          const accountExpenseSum = expenseSum?.find((i) => i.Source === account.name);
+
+          const balance = (accountIncomeSum?.sum || 0) - (accountExpenseSum?.sum || 0);
+
+          return (
+            <Paper
+              shadow="xs"
+              p="md"
+              sx={(theme) => ({
+                backgroundImage: account.color
+                  ? theme.fn.gradient({
+                      from: theme.fn.rgba(account.color, 0.45),
+                      to: theme.fn.rgba(account.color, 0),
+                      deg: 45,
+                    })
+                  : undefined,
+              })}
+            >
+              <Group position="apart">
+                <Text fw={700}>{account.name}</Text>
+                <Text fw={700}>
+                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    balance / 100
+                  )}
+                </Text>
+              </Group>
+            </Paper>
+          );
         })}
-      >
-        <Container>
-          <Stack>
-            {accountsWithAmounts.map((account) => (
-              <Paper
-                shadow="xs"
-                p="md"
-                sx={(theme) => ({
-                  backgroundImage: theme.fn.gradient({
-                    from: theme.fn.rgba(account.color, 0.45),
-                    to: theme.fn.rgba(account.color, 0),
-                    deg: 45,
-                  }),
-                })}
-              >
-                <Group position="apart">
-                  <Text fw={700}>{account.accountName}</Text>
-                  <Text fw={700}>
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                      account.amount
-                    )}
-                  </Text>
-                </Group>
-              </Paper>
+
+        <Paper shadow="xs" p="md">
+          <Stack spacing="xs">
+            {budgets.map((budget) => (
+              <Group key={budget.budgetName} position="apart">
+                <Text fw={700}>
+                  {budget.budgetName}
+                  {budget.notMyOwn ? '*' : ''}
+                </Text>
+                <Text fw={700}>
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(budget.amount)}
+                </Text>
+              </Group>
             ))}
+          </Stack>
 
-            <Paper shadow="xs" p="md">
-              <Stack spacing="xs">
-                {budgets.map((budget) => (
-                  <Group key={budget.budgetName} position="apart">
-                    <Text fw={700}>
-                      {budget.budgetName}
-                      {budget.notMyOwn ? '*' : ''}
-                    </Text>
-                    <Text fw={700}>
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(budget.amount)}
-                    </Text>
-                  </Group>
-                ))}
-              </Stack>
+          <Divider my="sm" variant="dashed" />
 
-              <Divider my="sm" variant="dashed" />
+          <Stack spacing="xs">
+            <Group position="apart">
+              <Text c="dimmed">total in accounts</Text>
+              <Text c="dimmed">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(totalInAccounts)}
+              </Text>
+            </Group>
 
-              <Stack spacing="xs">
-                <Group position="apart">
-                  <Text c="dimmed">total in accounts</Text>
-                  <Text c="dimmed">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(totalInAccounts)}
-                  </Text>
-                </Group>
+            <Group position="apart">
+              <Text c="dimmed">total budgeted</Text>
+              <Text c="dimmed">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(totalBudgeted)}
+              </Text>
+            </Group>
 
-                <Group position="apart">
-                  <Text c="dimmed">total budgeted</Text>
-                  <Text c="dimmed">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(totalBudgeted)}
-                  </Text>
-                </Group>
+            <Group position="apart">
+              <Text c="dimmed">not my own</Text>
+              <Text c="dimmed">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(notMyOwn)}
+              </Text>
+            </Group>
 
-                <Group position="apart">
-                  <Text c="dimmed">not my own</Text>
-                  <Text c="dimmed">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(notMyOwn)}
-                  </Text>
-                </Group>
+            <Group position="apart">
+              <Text fw={700}>how much you have left</Text>
+              <Text fw={700}>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(totalInAccounts - totalBudgeted)}
+              </Text>
+            </Group>
 
-                <Group position="apart">
-                  <Text fw={700}>how much you have left</Text>
-                  <Text fw={700}>
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: 'BRL',
-                    }).format(totalInAccounts - totalBudgeted)}
-                  </Text>
-                </Group>
-
-                {/* <Group position="apart">
+            {/* <Group position="apart">
                   <Text fw={700}>not mine</Text>
                   <Text fw={700}>
                     {new Intl.NumberFormat('pt-BR', {
@@ -173,11 +219,9 @@ export default function HomePage() {
                     }).format(budgets.reduce((sum, budget) => sum + budget.amount, 0))}
                   </Text>
                 </Group> */}
-              </Stack>
-            </Paper>
           </Stack>
-        </Container>
-      </AppShell>
-    </>
+        </Paper>
+      </Stack>
+    </Shell>
   );
 }
