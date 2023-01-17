@@ -1,22 +1,9 @@
-import {
-  Stack,
-  Button,
-  Container,
-  Paper,
-  AppShell,
-  Group,
-  Text,
-  Space,
-  Divider,
-  Loader,
-} from '@mantine/core';
+import { Stack, Container, Paper, AppShell, Group, Text, Divider, Loader } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
-import { FunctionComponent, PropsWithChildren, ReactNode } from 'react';
-import { ColorSchemeToggle } from '../components/ColorSchemeToggle/ColorSchemeToggle';
-import client from '../database/client';
-import { getAccounts } from '../database/getAccounts';
-import { getExpenseSumByAccount } from '../database/getExpenseSumByAccount';
-import { getIncomeSumByAccount } from '../database/getIncomeSumByAccount';
+import { PropsWithChildren } from 'react';
+import { getAccounts } from '../api/getAccounts';
+import { getExpenseSumByAccount } from '../api/getExpenseSumByAccount';
+import { getIncomeSumByAccount } from '../api/getIncomeSumByAccount';
 
 const accountsWithAmounts = [
   {
@@ -80,21 +67,9 @@ export default function HomePage() {
     getAccounts()
   );
 
-  const { data: incomeSum, isLoading: isLoadingIncomeSum } = useQuery(['incomeSum'], () =>
-    getIncomeSumByAccount()
-  );
-
-  const { data: expenseSum, isLoading: isLoadingExpenseSum } = useQuery(['expenseSum'], () =>
-    getExpenseSumByAccount()
-  );
-
   console.log(accounts);
 
-  console.table(incomeSum);
-
-  console.table(expenseSum);
-
-  const isLoading = isLoadingAccounts || isLoadingIncomeSum || isLoadingExpenseSum;
+  const isLoading = isLoadingAccounts;
 
   if (isLoading) {
     return (
@@ -107,37 +82,30 @@ export default function HomePage() {
   return (
     <Shell>
       <Stack>
-        {accounts?.map((account) => {
-          const accountIncomeSum = incomeSum?.find((i) => i.Target === account.name);
-          const accountExpenseSum = expenseSum?.find((i) => i.Source === account.name);
-
-          const balance = (accountIncomeSum?.sum || 0) - (accountExpenseSum?.sum || 0);
-
-          return (
-            <Paper
-              shadow="xs"
-              p="md"
-              sx={(theme) => ({
-                backgroundImage: account.color
-                  ? theme.fn.gradient({
-                      from: theme.fn.rgba(account.color, 0.45),
-                      to: theme.fn.rgba(account.color, 0),
-                      deg: 45,
-                    })
-                  : undefined,
-              })}
-            >
-              <Group position="apart">
-                <Text fw={700}>{account.name}</Text>
-                <Text fw={700}>
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    balance / 100
-                  )}
-                </Text>
-              </Group>
-            </Paper>
-          );
-        })}
+        {accounts?.map((account) => (
+          <Paper
+            shadow="xs"
+            p="md"
+            sx={(theme) => ({
+              backgroundImage: account.color
+                ? theme.fn.gradient({
+                    from: theme.fn.rgba(account.color, 0.45),
+                    to: theme.fn.rgba(account.color, 0),
+                    deg: 45,
+                  })
+                : undefined,
+            })}
+          >
+            <Group position="apart">
+              <Text fw={700}>{account.name}</Text>
+              <Text fw={700}>
+                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                  account.balance / 100
+                )}
+              </Text>
+            </Group>
+          </Paper>
+        ))}
 
         <Paper shadow="xs" p="md">
           <Stack spacing="xs">

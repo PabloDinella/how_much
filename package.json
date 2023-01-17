@@ -37,7 +37,9 @@
     "embla-carousel-react": "^7.0.3",
     "next": "12.3.1",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "wretch": "^2.3.2",
+    "zod": "^3.20.2"
   },
   "devDependencies": {
     "@babel/core": "^7.17.8",
